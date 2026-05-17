@@ -42,14 +42,19 @@ const server = http.createServer(async (req, res) => {
     budget_tokens: THINKING_BUDGET_TOKENS,
   };
 
-  if (!req.headers.authorization) {
+  const apiKeyHeader = req.headers.authorization || req.headers["x-api-key"];
+  if (!apiKeyHeader) {
     return sendJson(res, 401, {
-      error: "Missing Authorization header. Put your Kimi API Key in Trae.",
+      error: "Missing API key header. Put your Kimi API Key in Trae.",
     });
   }
 
+  const authValue = apiKeyHeader.toLowerCase().startsWith("bearer ")
+    ? apiKeyHeader
+    : `Bearer ${apiKeyHeader}`;
+
   const headers = {
-    "authorization": req.headers.authorization,
+    "authorization": authValue,
     "content-type": "application/json",
     "accept": req.headers.accept || "application/json",
   };
