@@ -58,6 +58,14 @@ API Key: 你的 Kimi Code API Key
 THINKING_BUDGET_TOKENS=32000 PORT=8787 node server.js
 ```
 
+如果日志里出现 `SELF_SIGNED_CERT_IN_CHAIN`，说明当前网络环境可能有 HTTPS 证书拦截或本机代理证书未被 Node 信任。临时绕过证书校验：
+
+```bash
+KIMI_INSECURE_TLS=1 node server.js
+```
+
+这个开关会关闭 Node 对上游 HTTPS 证书链的校验，只建议在你明确知道当前网络环境可信时使用。
+
 ## 健康检查
 
 ```bash

@@ -3,6 +3,11 @@ const http = require("http");
 const PORT = Number(process.env.PORT || 8787);
 const KIMI_URL = "https://api.kimi.com/coding/v1/messages";
 const THINKING_BUDGET_TOKENS = Number(process.env.THINKING_BUDGET_TOKENS || 16000);
+const INSECURE_TLS = process.env.KIMI_INSECURE_TLS === "1";
+
+if (INSECURE_TLS) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 function log(event, details = {}) {
   console.log(JSON.stringify({
@@ -209,5 +214,6 @@ server.listen(PORT, "127.0.0.1", () => {
     messagesUrl: `http://127.0.0.1:${PORT}/v1/messages`,
     target: KIMI_URL,
     thinkingBudgetTokens: THINKING_BUDGET_TOKENS,
+    insecureTls: INSECURE_TLS,
   });
 });

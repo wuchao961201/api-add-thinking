@@ -27,6 +27,15 @@ cat > "$PLIST_PATH" <<EOF
   </array>
   <key>WorkingDirectory</key>
   <string>${ROOT_DIR}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PORT</key>
+    <string>${PORT:-8787}</string>
+    <key>THINKING_BUDGET_TOKENS</key>
+    <string>${THINKING_BUDGET_TOKENS:-16000}</string>
+    <key>KIMI_INSECURE_TLS</key>
+    <string>${KIMI_INSECURE_TLS:-0}</string>
+  </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -46,6 +55,7 @@ launchctl kickstart -k "gui/$(id -u)/${NAME}"
 
 echo "Installed ${NAME}"
 echo "Proxy URL: http://127.0.0.1:8787/v1/messages"
+echo "KIMI_INSECURE_TLS=${KIMI_INSECURE_TLS:-0}"
 echo "Logs:"
 echo "  $HOME/Library/Logs/${NAME}.log"
 echo "  $HOME/Library/Logs/${NAME}.error.log"
