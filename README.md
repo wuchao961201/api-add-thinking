@@ -123,6 +123,16 @@ tail -f ~/Library/Logs/com.wuchao.kimi-thinking-proxy.log
 
 日志是 JSON lines，会记录请求路径、关键请求头、模型、stream、thinking 预算、上游状态码和耗时。API Key 会脱敏，不会完整写入日志。
 
+排查 thinking 时重点看：
+
+```text
+thinking.delta
+result.delta
+response.completed
+```
+
+`response.completed` 里会包含完整拼接后的 `fullThinking` 和 `fullText`，方便确认模型是否真的返回了思考内容。
+
 ## 工作方式
 
 Trae 请求：

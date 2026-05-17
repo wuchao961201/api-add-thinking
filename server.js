@@ -183,6 +183,8 @@ const server = http.createServer(async (req, res) => {
       let sawThinkingBlock = false;
       let thinkingDeltaCount = 0;
       let thinkingChars = 0;
+      let fullThinking = "";
+      let fullText = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -203,7 +205,20 @@ const server = http.createServer(async (req, res) => {
             }
             if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") {
               thinkingDeltaCount += 1;
-              thinkingChars += event.delta.thinking?.length || 0;
+              const deltaThinking = event.delta.thinking || "";
+              thinkingChars += deltaThinking.length;
+              fullThinking += deltaThinking;
+              log("thinking.delta", {
+                chunkIndex: thinkingDeltaCount,
+                delta: deltaThinking,
+              });
+            }
+            if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+              const deltaText = event.delta.text || "";
+              fullText += deltaText;
+              log("result.delta", {
+                delta: deltaText,
+              });
             }
           } catch {
             // Ignore non-JSON SSE data frames such as [DONE].
@@ -217,13 +232,18 @@ const server = http.createServer(async (req, res) => {
         sawThinkingBlock,
         thinkingDeltaCount,
         thinkingChars,
+        fullThinking,
+        fullText,
         durationMs: Date.now() - startedAt,
       });
     } else {
-      res.end(await upstream.text());
+      const bodyText = await upstream.text();
+      res.end(bodyText);
       log("response.completed", {
         status: upstream.status,
         streamed: false,
+        fullThinking: null,
+        fullText: bodyText,
         durationMs: Date.now() - startedAt,
       });
     }
@@ -244,5 +264,11 @@ server.listen(PORT, "127.0.0.1", () => {
     target: KIMI_URL,
     thinkingBudgetTokens: THINKING_BUDGET_TOKENS,
     insecureTls: INSECURE_TLS,
+    traeConfig: {
+      provider: "Anthropic",
+      modelId: "kimi-for-coding",
+      customRequestUrl: `http://127.0.0.1:${PORT}/v1/messages`,
+      apiKey: "Kimi Code API Key in Trae",
+    },
   });
 });
