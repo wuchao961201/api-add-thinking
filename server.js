@@ -40,6 +40,41 @@ function serializeError(error) {
   };
 }
 
+function summarizeText(text, limit = 300) {
+  const value = String(text ?? "");
+  return {
+    chars: value.length,
+    preview: value.length > limit ? `${value.slice(0, limit)}...` : value,
+  };
+}
+
+function summarizeContent(content) {
+  if (typeof content === "string") {
+    return {
+      kind: "string",
+      ...summarizeText(content),
+    };
+  }
+
+  if (Array.isArray(content)) {
+    return {
+      kind: "array",
+      parts: content.length,
+      partSummaries: content.map((part, index) => ({
+        index,
+        type: part?.type || null,
+        text: part?.text !== undefined ? summarizeText(part.text) : null,
+        hasCacheControl: Boolean(part?.cache_control),
+      })),
+    };
+  }
+
+  return {
+    kind: content === null ? "null" : typeof content,
+    value: content,
+  };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -116,7 +151,7 @@ const server = http.createServer(async (req, res) => {
       log("request.message", {
         index,
         role: message.role || null,
-        content: message.content ?? null,
+        contentSummary: summarizeContent(message.content),
       });
     });
   }
