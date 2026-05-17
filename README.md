@@ -39,13 +39,24 @@ http://127.0.0.1:8787/v1/messages
 
 ## Trae 配置
 
-在 Trae 的自定义模型里填写：
+可以在 Trae 里添加两个 Anthropic 自定义模型。
+
+Kimi Code：
 
 ```text
 Provider: Anthropic
 Model ID: kimi-for-coding
-Custom Request URL: http://127.0.0.1:8787/v1/messages
+Custom Request URL: http://127.0.0.1:8787/kimi/v1/messages
 API Key: 你的 Kimi Code API Key
+```
+
+讯飞 MaaS Coding：
+
+```text
+Provider: Anthropic
+Model ID: astron-code-latest
+Custom Request URL: http://127.0.0.1:8787/xfyun/v1/messages
+API Key: 你的讯飞 MaaS Coding API Key
 ```
 
 注意：API Key 填在 Trae，不要填在这个中转服务里。

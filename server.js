@@ -1,9 +1,32 @@
 const http = require("http");
 
 const PORT = Number(process.env.PORT || 8787);
-const KIMI_URL = "https://api.kimi.com/coding/v1/messages";
+const UPSTREAM_MESSAGES_URL = process.env.UPSTREAM_MESSAGES_URL || "https://api.kimi.com/coding/v1/messages";
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "kimi-for-coding";
 const THINKING_BUDGET_TOKENS = Number(process.env.THINKING_BUDGET_TOKENS || 16000);
 const INSECURE_TLS = process.env.KIMI_INSECURE_TLS === "1";
+const PROVIDERS = {
+  "/v1/messages": {
+    name: "kimi",
+    messagesUrl: "https://api.kimi.com/coding/v1/messages",
+    defaultModel: "kimi-for-coding",
+  },
+  "/messages": {
+    name: "kimi",
+    messagesUrl: "https://api.kimi.com/coding/v1/messages",
+    defaultModel: "kimi-for-coding",
+  },
+  "/kimi/v1/messages": {
+    name: "kimi",
+    messagesUrl: "https://api.kimi.com/coding/v1/messages",
+    defaultModel: "kimi-for-coding",
+  },
+  "/xfyun/v1/messages": {
+    name: "xfyun",
+    messagesUrl: "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic/v1/messages",
+    defaultModel: "astron-code-latest",
+  },
+};
 
 if (INSECURE_TLS) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -89,11 +112,37 @@ function sendJson(res, statusCode, body) {
   res.end(JSON.stringify(body));
 }
 
+function providerConfigs(port) {
+  return {
+    kimi: {
+      provider: "Anthropic",
+      modelId: "kimi-for-coding",
+      customRequestUrl: `http://127.0.0.1:${port}/kimi/v1/messages`,
+      apiKey: "Kimi Code API Key in Trae",
+    },
+    xfyun: {
+      provider: "Anthropic",
+      modelId: "astron-code-latest",
+      customRequestUrl: `http://127.0.0.1:${port}/xfyun/v1/messages`,
+      apiKey: "Xfyun MaaS Coding API Key in Trae",
+    },
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const startedAt = Date.now();
+  const routeProvider = PROVIDERS[req.url] || null;
+  const envProvider = {
+    name: "env",
+    messagesUrl: UPSTREAM_MESSAGES_URL,
+    defaultModel: DEFAULT_MODEL,
+  };
+  const provider = routeProvider || envProvider;
+
   log("request.received", {
     method: req.method,
     url: req.url,
+    provider: provider.name,
     accept: req.headers.accept || null,
     contentType: req.headers["content-type"] || null,
     userAgent: req.headers["user-agent"] || null,
@@ -104,10 +153,15 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
     log("request.health", { status: 200, durationMs: Date.now() - startedAt });
-    return sendJson(res, 200, { ok: true, target: KIMI_URL });
+    return sendJson(res, 200, {
+      ok: true,
+      defaultTarget: UPSTREAM_MESSAGES_URL,
+      defaultModel: DEFAULT_MODEL,
+      routes: providerConfigs(PORT),
+    });
   }
 
-  if (req.method !== "POST" || !["/v1/messages", "/messages"].includes(req.url)) {
+  if (req.method !== "POST" || (!routeProvider && !["/v1/messages", "/messages"].includes(req.url))) {
     log("request.not_found", {
       status: 404,
       method: req.method,
@@ -115,7 +169,8 @@ const server = http.createServer(async (req, res) => {
       durationMs: Date.now() - startedAt,
     });
     return sendJson(res, 404, {
-      error: "Use POST /v1/messages as the Trae custom Anthropic request URL.",
+      error: "Use POST /kimi/v1/messages or /xfyun/v1/messages as the Trae custom Anthropic request URL.",
+      routes: providerConfigs(PORT),
     });
   }
 
@@ -156,7 +211,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  payload.model = payload.model || "kimi-for-coding";
+  payload.model = payload.model || provider.defaultModel;
   payload.thinking = {
     type: "enabled",
     budget_tokens: THINKING_BUDGET_TOKENS,
@@ -189,7 +244,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   log("upstream.request", {
-    target: KIMI_URL,
+    provider: provider.name,
+    target: provider.messagesUrl,
     model: payload.model,
     stream: Boolean(payload.stream),
     thinking: payload.thinking,
@@ -198,7 +254,7 @@ const server = http.createServer(async (req, res) => {
   });
 
   try {
-    const upstream = await fetch(KIMI_URL, {
+    const upstream = await fetch(provider.messagesUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
@@ -296,14 +352,10 @@ server.listen(PORT, "127.0.0.1", () => {
   log("server.started", {
     listen: `http://127.0.0.1:${PORT}`,
     messagesUrl: `http://127.0.0.1:${PORT}/v1/messages`,
-    target: KIMI_URL,
+    defaultTarget: UPSTREAM_MESSAGES_URL,
+    defaultModel: DEFAULT_MODEL,
     thinkingBudgetTokens: THINKING_BUDGET_TOKENS,
     insecureTls: INSECURE_TLS,
-    traeConfig: {
-      provider: "Anthropic",
-      modelId: "kimi-for-coding",
-      customRequestUrl: `http://127.0.0.1:${PORT}/v1/messages`,
-      apiKey: "Kimi Code API Key in Trae",
-    },
+    routes: providerConfigs(PORT),
   });
 });
