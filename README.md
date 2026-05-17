@@ -107,6 +107,14 @@ bash scripts/uninstall-macos.sh
 http://127.0.0.1:8787/v1/messages
 ```
 
+查看日志：
+
+```bash
+tail -f ~/Library/Logs/com.wuchao.kimi-thinking-proxy.log
+```
+
+日志是 JSON lines，会记录请求路径、关键请求头、模型、stream、thinking 预算、上游状态码和耗时。API Key 会脱敏，不会完整写入日志。
+
 ## 工作方式
 
 Trae 请求：
