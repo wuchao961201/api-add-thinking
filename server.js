@@ -19,6 +19,22 @@ function redactApiKey(value) {
   return `${raw.slice(0, 6)}...${raw.slice(-4)}`;
 }
 
+function serializeError(error) {
+  return {
+    name: error?.name || null,
+    message: error?.message || null,
+    stack: error?.stack || null,
+    cause: error?.cause ? {
+      name: error.cause.name || null,
+      message: error.cause.message || null,
+      code: error.cause.code || null,
+      errno: error.cause.errno || null,
+      syscall: error.cause.syscall || null,
+      hostname: error.cause.hostname || null,
+    } : null,
+  };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -65,7 +81,11 @@ const server = http.createServer(async (req, res) => {
 
   let payload;
   try {
-    payload = JSON.parse(await readBody(req));
+    const rawBody = await readBody(req);
+    payload = JSON.parse(rawBody);
+    log("request.body", {
+      bytes: Buffer.byteLength(rawBody),
+    });
   } catch (error) {
     log("request.invalid_json", {
       status: 400,
@@ -85,6 +105,16 @@ const server = http.createServer(async (req, res) => {
       budgetTokens: payload.thinking.budget_tokens || null,
     } : null,
   });
+
+  if (Array.isArray(payload.messages)) {
+    payload.messages.forEach((message, index) => {
+      log("request.message", {
+        index,
+        role: message.role || null,
+        content: message.content ?? null,
+      });
+    });
+  }
 
   payload.model = payload.model || "kimi-for-coding";
   payload.thinking = {
@@ -166,7 +196,7 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     log("upstream.error", {
       status: 502,
-      error: error.message,
+      error: serializeError(error),
       durationMs: Date.now() - startedAt,
     });
     sendJson(res, 502, { error: "Failed to call Kimi API.", detail: error.message });
