@@ -179,15 +179,44 @@ const server = http.createServer(async (req, res) => {
 
     if (upstream.body) {
       const reader = upstream.body.getReader();
+      let responseTextBuffer = "";
+      let sawThinkingBlock = false;
+      let thinkingDeltaCount = 0;
+      let thinkingChars = 0;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        res.write(Buffer.from(value));
+        const chunk = Buffer.from(value);
+        res.write(chunk);
+
+        responseTextBuffer += chunk.toString("utf8");
+        const lines = responseTextBuffer.split("\n");
+        responseTextBuffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          try {
+            const event = JSON.parse(line.slice(5).trim());
+            if (event.type === "content_block_start" && event.content_block?.type === "thinking") {
+              sawThinkingBlock = true;
+            }
+            if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") {
+              thinkingDeltaCount += 1;
+              thinkingChars += event.delta.thinking?.length || 0;
+            }
+          } catch {
+            // Ignore non-JSON SSE data frames such as [DONE].
+          }
+        }
       }
       res.end();
       log("response.completed", {
         status: upstream.status,
         streamed: true,
+        sawThinkingBlock,
+        thinkingDeltaCount,
+        thinkingChars,
         durationMs: Date.now() - startedAt,
       });
     } else {
