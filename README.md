@@ -87,6 +87,26 @@ curl http://127.0.0.1:8787/v1/messages \
 
 如果返回的 `content` 里有 `type: "thinking"`，说明中转已经生效。
 
+## Mac 后台常驻
+
+安装成登录后自动启动的用户级服务：
+
+```bash
+bash scripts/install-macos.sh
+```
+
+停止并删除：
+
+```bash
+bash scripts/uninstall-macos.sh
+```
+
+安装后，Trae 继续指向：
+
+```text
+http://127.0.0.1:8787/v1/messages
+```
+
 ## 工作方式
 
 Trae 请求：
